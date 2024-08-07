@@ -5,6 +5,8 @@ from rest_framework import exceptions as rest_exceptions, response, decorators a
 from rest_framework_simplejwt import tokens, views as jwt_views, serializers as jwt_serializers, exceptions as jwt_exceptions
 from user import serializers, models
 
+import requests
+
 
 def get_user_tokens(user):
     refresh = tokens.RefreshToken.for_user(user)
@@ -48,6 +50,7 @@ def loginView(request):
 
         res.data = tokens
         res["X-CSRFToken"] = csrf.get_token(request)
+
         return res
     raise rest_exceptions.AuthenticationFailed(
         "Email or Password is incorrect!")
@@ -56,6 +59,7 @@ def loginView(request):
 @rest_decorators.api_view(["POST"])
 @rest_decorators.permission_classes([])
 def registerView(request):
+
     serializer = serializers.RegistrationSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
@@ -118,6 +122,12 @@ class CookieTokenRefreshView(jwt_views.TokenRefreshView):
         return super().finalize_response(request, response, *args, **kwargs)
 
 
+
+
+ETHERSCAN_API_KEY = 'P2TD773YSWCQHVTMX4NBB7I2MERCGY535S'
+
+
+
 @rest_decorators.api_view(["GET"])
 @rest_decorators.permission_classes([rest_permissions.IsAuthenticated])
 def user(request):
@@ -127,4 +137,29 @@ def user(request):
         return response.Response(status_code=404)
 
     serializer = serializers.UserSerializer(user)
-    return response.Response(serializer.data)
+
+    ethereum_address = user.profile.ethereum_addr
+
+    etherscan_url = f"https://api.etherscan.io/api?module=account&action=balance&address={ethereum_address}&tag=latest&apikey={ETHERSCAN_API_KEY}"
+    balance_eth = None
+
+    try:
+        response_data = requests.get(etherscan_url).json()
+
+        if response_data['status'] == '1':
+
+            balance_wei = int(response_data['result'])
+            balance_eth = balance_wei / (10 ** 18)
+
+        else:
+            balance_eth = "Error fetching balance: " + response_data.get('message', 'Unknown error')
+
+    except Exception as e:
+        balance_eth = "Error fetching balance: " + str(e)
+
+
+    user_data = serializer.data
+    user_data['ethereum_balance'] = str(balance_eth) if balance_eth else "0.0"
+
+
+    return response.Response(user_data)

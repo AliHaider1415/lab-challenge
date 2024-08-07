@@ -69,17 +69,19 @@ class Profile(models.Model):
     image = models.ImageField(upload_to='profile/', default='media/profile/avatar.png')
     about = models.TextField(blank=True, null=True)
 
+    ethereum_addr = models.CharField(max_length=250, default = "", blank=False, null=False)
+
     def __str__(self):
         return f'{self.user.email} Profile'
 
-@receiver(post_save, sender=get_user_model())
-def create_user_profile(sender, instance, created, **kwargs):
-    if created:
-        Profile.objects.create(user=instance)
+# @receiver(post_save, sender=get_user_model())
+# def create_user_profile(sender, instance, created, **kwargs):
+#     if created:
+#         Profile.objects.create(user=instance)
 
-@receiver(post_save, sender=get_user_model())
-def save_user_profile(sender, instance, **kwargs):
-    instance.profile.save()
+# @receiver(post_save, sender=get_user_model())
+# def save_user_profile(sender, instance, **kwargs):
+#     instance.profile.save()
 
 @receiver(post_save, sender=get_user_model())
 def save_avatar(sender=User, instance=None, **kwargs):
